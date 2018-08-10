@@ -1,6 +1,7 @@
 require "bunny"
 require "toxiproxy"
 require "pp"
+require "logger"
 
 Toxiproxy.populate([{
   name: "rabbitmq",
@@ -9,33 +10,32 @@ Toxiproxy.populate([{
 }])
 
 STDOUT.sync = true
+logger = Logger.new(STDOUT)
 
-conn = Bunny.new("amqp://guest:guest@localhost:56722", continuation_timeout: 1000)
+conn = Bunny.new("amqp://guest:guest@localhost:56722",
+  logger: logger)
 conn.start
 
 ch = conn.create_channel
 
-print "Declaring Bob..."
-Toxiproxy[/rabbitmq/].downstream(:latency, latency: 2000).apply do
+logger.info "Declaring Bob with ch.queue('Bob')..."
+Toxiproxy[/rabbitmq/].downstream(:latency, latency: 20000).apply do
   begin
     ch.queue("Bob")
   rescue StandardError => e
-    print " got: "
-    pp e
+    logger.warn "Exception: #{e}"
+    logger.warn e.backtrace.join("\n")
   end
 end
 
-print "Declaring Sally..."
+logger.info "Declaring Sally with ch.queue('Sally')..."
 queue = ch.queue("Sally")
-print " got: "
-pp queue
+logger.info "Recived #{queue.name} for ch.queue('Sally')"
 
-print "Declaring Rick..."
+logger.info "Declaring Rick with ch.queue('Rick'))..."
 queue = ch.queue("Rick")
-print " got: "
-pp queue
+logger.info "Recived #{queue.name} for ch.queue('Rick')"
 
-puts "Declaring Bob..."
+logger.info "Declaring Bob again with ch.queue('Bob'))..."
 queue = ch.queue("Bob")
-print " got: "
-pp queue
+logger.info "Recived #{queue.name} for ch.queue('Bob')"
